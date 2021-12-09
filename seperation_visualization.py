@@ -10,7 +10,7 @@ def get_avoid_vector(position, targets, radius):
     weighted_vectors = norm_vectors * (radius - distances)
     return np.sum(weighted_vectors, 0) / len(vectors)
 
-#test
+#testfjsbfibefibewif
 
 def main():
     pg.init()

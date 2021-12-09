@@ -12,6 +12,8 @@ def get_avoid_vector(position, targets, radius):
 
 #testfjsbfibefibewif
 
+#lorem ipsum
+
 def main():
     pg.init()
     display = pg.display.set_mode((600, 600))

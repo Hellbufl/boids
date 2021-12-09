@@ -14,11 +14,10 @@ def get_avoid_vector(position, targets, radius):
 
 #lorem ipsum
 
-<<<<<<< HEAD
-#helloworld
-=======
 #test
->>>>>>> 1f03603b9c711d16c8212b60c71d8d246d832f45
+
+
+#hallo
 
 def main():
     pg.init()

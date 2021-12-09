@@ -10,6 +10,8 @@ def get_avoid_vector(position, targets, radius):
     weighted_vectors = norm_vectors * (radius - distances)
     return np.sum(weighted_vectors, 0) / len(vectors)
 
+#test
+
 def main():
     pg.init()
     display = pg.display.set_mode((600, 600))
@@ -29,7 +31,7 @@ def main():
             if event.type == QUIT:
                 pg.quit()
                 sys.exit()
-            
+
             elif event.type == MOUSEBUTTONDOWN and event.button == 1:
                 avoid_targets = np.append(avoid_targets, np.array([cursor_position]), int(avoid_targets.size == 0))
                 current_targets_mask = np.append(current_targets_mask, True)
@@ -38,17 +40,17 @@ def main():
             for i in range(len(avoid_targets)):
                 current_targets_mask[i] = np.linalg.norm(avoid_targets[i] - cursor_position) < target_radius
                 pg.draw.circle(display, (255, 255, 255), avoid_targets[i], 3)
-        
+
         current_targets = avoid_targets[current_targets_mask]
 
         if current_targets.size > 0:
 
             for i in range(len(current_targets)):
                 pg.draw.line(display, (255, 0, 0), current_targets[i], cursor_position, 2)
-            
+
             avoid_vector = get_avoid_vector(cursor_position, current_targets, target_radius)
             pg.draw.line(display, (162, 255, 43), cursor_position, cursor_position + avoid_vector, 2)
-        
+
         pg.display.update()
         clock.tick(60)
 

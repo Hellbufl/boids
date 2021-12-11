@@ -14,11 +14,12 @@ Prioitäten:
     - Verhalten Schwarm: Siehe Separation, ohne die anderen zwei
     - Verhungern?
     - Agieren nach Kohäsion
-    - Fressen wenn Überschneidung 
-3. Hindernisse
-    - Stationäre Feinde
+    - Fressen wenn Überschneidung
 
-    Oder: Punkt- und Flächenhindernisse
+3. Hindernisse
+    - Punkthindernisse: "Stationäre Feinde"
+
+    Oder: Flächenhindernisse (Körper in 3D)
     - Zufällig?
 
 4. 3D

@@ -13,7 +13,7 @@ class Boids:
         # Gibt Tupel (pos, vel) zurück
         pass
     
-    def get_target_mask(self, current):
+    def get_target_mask(self, current_pos):
         # Bestimmt welche Agenten vom aktuellen sichtbar sind
         # Gibt Array aus Bools zurück
         pass

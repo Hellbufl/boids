@@ -18,20 +18,20 @@ class Boids:
         # Gibt Array aus Bools zurück
         pass
     
-    def get_seperation_force(self, current, targets):
+    def get_seperation_force(self, current_pos, targets):
         vectors = current - targets
         distances = np.reshape(np.linalg.norm(vectors, axis=1), (len(vectors), 1))
         norm_vectors = vectors / distances
         weighted_vectors = norm_vectors * (self.radius - distances)
         return np.sum(weighted_vectors, 0) / len(vectors)
 
-    def get_alignment_force(self, current, targets):
+    def get_alignment_force(self, current_pos, targets):
         pass
     
-    def get_cohesion_force(self, current, targets):
+    def get_cohesion_force(self, current_pos, targets):
         pass
 
-    def update_velocity(self, current, force):
+    def update_velocity(self, current_vel, force):
         # Ändert Geschwindigkeit anhand der wirkenden Kraft
         # Gibt neue Geschwindigkeit zurück
         pass

@@ -19,7 +19,11 @@ class Boids:
         pass
     
     def get_seperation_force(self, current, targets):
-        pass
+        vectors = current - targets
+        distances = np.reshape(np.linalg.norm(vectors, axis=1), (len(vectors), 1))
+        norm_vectors = vectors / distances
+        weighted_vectors = norm_vectors * (self.radius - distances)
+        return np.sum(weighted_vectors, 0) / len(vectors)
 
     def get_alignment_force(self, current, targets):
         pass

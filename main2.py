@@ -13,15 +13,18 @@ class Boids:
         # Gibt Tupel (pos, vel) zurück
         pass
 
-    def get_target_mask(self, current_pos):
-        l = []
-        for i in range(len(self.agent_positions)-1):
-            if np.abs(self.agent_positions[i]-current_pos)
+    def get_targets(self, current_pos):
         # Bestimmt welche Agenten vom aktuellen sichtbar sind
         # Gibt Array aus Bools zurück
-        pass
+        mask = np.zeros([self.n], dtype=bool)
+        for i in range(len(self.agent_positions)-1):
+            if np.abs(self.agent_positions[i]-current_pos) < self.radius:
+                mask[i] = True
+        target_pos = self.agent_positions[mask]
+        target_vel = self.agent_velocities[mask]
+        return (target_pos, target_vel)
 
-    def get_seperation_force(self, current_pos, target_pos):
+    def get_separation_force(self, current_pos, target_pos):
         vectors = current_pos - target_pos
         distances = np.reshape(np.linalg.norm(vectors, axis=1), (len(vectors), 1))
         norm_vectors = vectors / distances
@@ -43,10 +46,16 @@ class Boids:
         center_position = np.sum(target_pos, 0)/(len(target_pos)+1)
         return current_pos - center_position
 
-    def update_velocity(self, current_vel, force):
+    def update_velocity(self, current_vel, current_pos):
+        target_pos, target_vel = get_targets(current_pos)
+        cohesion_force = get_cohesion_force(current_pos, target_pos)
+        alignment_force = get_alignment_force(current_pos, target_pos)
+        separation_force = get_separation_force(current_pos, target_pos)
+        force = np.sum(cohesion_force, alignment_force, separation_force)
         # Ändert Geschwindigkeit anhand der wirkenden Kraft
         # Gibt neue Geschwindigkeit zurück
-        pass
+
+        return (current_vel + force)/2
 
     def update(self):
         # Loop über alle Agenten

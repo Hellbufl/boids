@@ -28,22 +28,22 @@ class Boids:
         mask = np.zeros([self.n], dtype=bool)
 
         for i in range(len(self.agent_positions)):
-
-            mask[i] = np.linalg.norm(self.agent_positions[i] - current_pos) < self.radius
+            if (self.agent_positions[i] != current_pos).all():
+                mask[i] = np.linalg.norm(self.agent_positions[i] - current_pos) < self.radius
 
         target_pos = self.agent_positions[mask]
         target_vel = self.agent_velocities[mask]
         return (target_pos, target_vel)
 
-    def get_separation_force(self, current_pos, targets):
-        vectors = current_pos - targets
+    def get_separation_force(self, current_pos, target_pos):
+        # print(target_pos)
+        vectors = current_pos - target_pos
         distances = np.reshape(np.linalg.norm(vectors, axis=1), (len(vectors), 1))
         norm_vectors = vectors / distances
         weighted_vectors = norm_vectors * (self.radius - distances)
         return np.sum(weighted_vectors, 0) / len(vectors)
 
     def get_alignment_force(self, current_pos, target_pos, target_vel):
-
         vectors_pos = current_pos - target_pos
         distances = np.reshape(np.linalg.norm(vectors_pos, axis=1), (len(vectors_pos), 1))
 
@@ -60,12 +60,16 @@ class Boids:
         # Ändert Geschwindigkeit anhand der wirkenden Kraft
         # Gibt neue Geschwindigkeit zurück
         target_pos, target_vel = self.get_targets(current_pos)
-        cohesion_force = self.get_cohesion_force(current_pos, target_pos)
-        alignment_force = self.get_alignment_force(current_pos, target_pos, target_vel)
-        separation_force = self.get_separation_force(current_pos, target_pos)
-        force = cohesion_force + alignment_force + separation_force
 
-        return (current_vel + force)/2
+        if target_pos.size != 0:
+            cohesion_force = self.get_cohesion_force(current_pos, target_pos)
+            alignment_force = self.get_alignment_force(current_pos, target_pos, target_vel)
+            separation_force = self.get_separation_force(current_pos, target_pos)
+            force = cohesion_force + alignment_force + separation_force
+
+            return (current_vel + force / 100) / 2
+        
+        return current_vel
 
     def update(self):
         new_velocities = np.zeros([self.n, 2])
@@ -95,12 +99,11 @@ class Boids:
 
     def mainloop(self):
         while True:
-            print(self.agent_velocities)
             self.update()
             self.draw()
             pg.display.update()
             self.clock.tick(60)
 
 if __name__ == '__main__':
-    B = Boids(10, 100)
+    B = Boids(30, 40)
     B.mainloop()

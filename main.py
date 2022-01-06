@@ -36,7 +36,6 @@ class Boids:
         return (target_pos, target_vel)
 
     def get_separation_force(self, current_pos, target_pos):
-        # print(target_pos)
         vectors = current_pos - target_pos
         distances = np.reshape(np.linalg.norm(vectors, axis=1), (len(vectors), 1))
         norm_vectors = vectors / distances
@@ -50,7 +49,7 @@ class Boids:
         length_vectors_vel = np.reshape(np.linalg.norm(target_vel, axis=1), (len(target_vel), 1))
         norm_vectors_vel = target_vel / length_vectors_vel
         weighted_vectors = norm_vectors_vel * (self.radius - distances)
-        return np.sum(target_vel, 0)/len(target_vel)
+        return np.sum(weighted_vectors, 0)/len(weighted_vectors)
 
     def get_cohesion_force(self, current_pos, target_pos):
         center_position = np.sum(target_pos, 0)/(len(target_pos)+1)

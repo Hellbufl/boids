@@ -1,6 +1,20 @@
 import numpy as np
 import pygame as pg
 
+def rotate_vector(vector, theta):
+    return np.dot(vector, np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]]))
+
+def vector_angle(v1, v2):
+    alpha = np.arccos(v1[0] / np.linalg.norm(v1))
+    beta = np.arccos(v2[0] / np.linalg.norm(v2))
+    
+    if v1[1] < 0:
+        alpha = -alpha
+    if v2[1] < 0:
+        beta = -beta
+    
+    return beta - alpha
+
 class Boids:
 
     def __init__(self, n, r):
@@ -16,19 +30,23 @@ class Boids:
     def generate_agents(self):
         # Generiert zufällige Positionen und Geschwindigkeiten
         # Gibt Tupel (pos, vel) zurück
+
         positions = np.random.rand(self.n, 2) * self.resolution
-        velocities = np.random.rand(self.n, 2) - 0.5
-        velocities = (velocities / np.reshape(np.linalg.norm(velocities, axis=1), (self.n, 1))) * 1
+        velocities = np.ones([self.n, 2]) * [1, 0]
+        angles = np.random.rand(self.n) * np.pi * 2
 
-        return (positions, velocities)
+        for i in range(self.n):
+            velocities[i] = rotate_vector(velocities[i], angles[i])
 
-    def get_targets(self, current_pos):
+        return (positions, velocities * 2)
+
+    def get_targets(self, current_pos, current_vel):
         # Bestimmt welche Agenten vom aktuellen sichtbar sind
         # Gibt Array aus Bools zurück
         mask = np.zeros([self.n], dtype=bool)
 
         for i in range(len(self.agent_positions)):
-            if (self.agent_positions[i] != current_pos).all():
+            if (self.agent_positions[i] != current_pos).all(): # and abs(vector_angle(current_vel, self.agent_positions[i] - current_pos)) < np.pi * 0.7:
                 mask[i] = np.linalg.norm(self.agent_positions[i] - current_pos) < self.radius
 
         target_pos = self.agent_positions[mask]
@@ -61,15 +79,17 @@ class Boids:
     def update_velocity(self, current_vel, current_pos):
         # Ändert Geschwindigkeit anhand der wirkenden Kraft
         # Gibt neue Geschwindigkeit zurück
-        target_pos, target_vel = self.get_targets(current_pos)
+        target_pos, target_vel = self.get_targets(current_pos, current_vel)
 
         if target_pos.size != 0:
             cohesion_force = self.get_cohesion_force(current_pos, target_pos)
-            alignment_force = self.get_alignment_force(current_pos, target_pos, target_vel) * 0.8
+            alignment_force = self.get_alignment_force(current_pos, target_pos, target_vel)
             separation_force = self.get_separation_force(current_pos, target_pos)
             force = cohesion_force + alignment_force + separation_force
 
-            return (current_vel + force) / 2
+            theta = vector_angle(current_vel, force)
+
+            return rotate_vector(current_vel, theta * 0.05)
         
         return current_vel
 
@@ -107,5 +127,5 @@ class Boids:
             self.clock.tick(60)
 
 if __name__ == '__main__':
-    B = Boids(30, 60)
+    B = Boids(30, 50)
     B.mainloop()

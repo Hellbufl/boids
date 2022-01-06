@@ -10,7 +10,10 @@ def get_avoid_vector(position, targets, radius):
     weighted_vectors = norm_vectors * (radius - distances)
     return np.sum(weighted_vectors, 0) / len(vectors)
 
-
+def get_cohesion_force(current_pos, target_pos):
+        center_position = np.sum(target_pos, 0) / len(target_pos)
+        force = center_position - current_pos
+        return force / np.linalg.norm(force)
 
 def main():
     pg.init()
@@ -48,7 +51,7 @@ def main():
             for i in range(len(current_targets)):
                 pg.draw.line(display, (255, 0, 0), current_targets[i], cursor_position, 2)
 
-            avoid_vector = get_avoid_vector(cursor_position, current_targets, target_radius)
+            avoid_vector = get_cohesion_force(cursor_position, current_targets) * 100
             pg.draw.line(display, (162, 255, 43), cursor_position, cursor_position + avoid_vector, 2)
 
         pg.display.update()

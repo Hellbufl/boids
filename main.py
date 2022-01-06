@@ -40,7 +40,8 @@ class Boids:
         distances = np.reshape(np.linalg.norm(vectors, axis=1), (len(vectors), 1))
         norm_vectors = vectors / distances
         weighted_vectors = norm_vectors * (self.radius - distances)
-        return np.sum(weighted_vectors, 0) / len(vectors)
+        force = np.sum(weighted_vectors, 0) / len(vectors)
+        return force / np.linalg.norm(force)
 
     def get_alignment_force(self, current_pos, target_pos, target_vel):
         vectors_pos = current_pos - target_pos
@@ -49,11 +50,13 @@ class Boids:
         length_vectors_vel = np.reshape(np.linalg.norm(target_vel, axis=1), (len(target_vel), 1))
         norm_vectors_vel = target_vel / length_vectors_vel
         weighted_vectors = norm_vectors_vel * (self.radius - distances)
-        return np.sum(weighted_vectors, 0)/len(weighted_vectors)
+        force = np.sum(weighted_vectors, 0) / len(weighted_vectors)
+        return force / np.linalg.norm(force)
 
     def get_cohesion_force(self, current_pos, target_pos):
-        center_position = np.sum(target_pos, 0)/(len(target_pos)+1)
-        return current_pos - center_position
+        center_position = np.sum(target_pos, 0) / len(target_pos)
+        force = center_position - current_pos
+        return force / np.linalg.norm(force)
 
     def update_velocity(self, current_vel, current_pos):
         # Ändert Geschwindigkeit anhand der wirkenden Kraft
@@ -62,11 +65,11 @@ class Boids:
 
         if target_pos.size != 0:
             cohesion_force = self.get_cohesion_force(current_pos, target_pos)
-            alignment_force = self.get_alignment_force(current_pos, target_pos, target_vel)
+            alignment_force = self.get_alignment_force(current_pos, target_pos, target_vel) * 0.8
             separation_force = self.get_separation_force(current_pos, target_pos)
             force = cohesion_force + alignment_force + separation_force
 
-            return (current_vel + force / 100) / 2
+            return (current_vel + force) / 2
         
         return current_vel
 
@@ -104,5 +107,5 @@ class Boids:
             self.clock.tick(60)
 
 if __name__ == '__main__':
-    B = Boids(30, 40)
+    B = Boids(30, 60)
     B.mainloop()

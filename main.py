@@ -6,13 +6,8 @@ def rotate_vector(vector, theta):
     return np.dot(vector, np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]]))
 
 def vector_angle(v1, v2):
-    alpha = np.arccos(v1[0] / np.linalg.norm(v1))
-    beta = np.arccos(v2[0] / np.linalg.norm(v2))
-    
-    if v1[1] < 0:
-        alpha = -alpha
-    if v2[1] < 0:
-        beta = -beta
+    alpha = np.arccos(v1[0] / np.linalg.norm(v1)) * (v1[1] / abs(v1[1]))
+    beta = np.arccos(v2[0] / np.linalg.norm(v2)) * (v2[1] / abs(v2[1]))
     
     return beta - alpha
 

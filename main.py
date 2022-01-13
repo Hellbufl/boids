@@ -1,3 +1,4 @@
+from doctest import master
 import numpy as np
 import pygame as pg
 import sys
@@ -8,7 +9,7 @@ def rotate_vector(vector, theta):
 def vector_angle(v1, v2):
     alpha = np.arccos(v1[0] / np.linalg.norm(v1)) * (v1[1] / abs(v1[1]))
     beta = np.arccos(v2[0] / np.linalg.norm(v2)) * (v2[1] / abs(v2[1]))
-    
+
     return beta - alpha
 
 class Boids:
@@ -20,6 +21,7 @@ class Boids:
         self.clock = pg.time.Clock()
 
         self.n = n
+        self.n_predator = 1
         self.radius = r
         self.agent_positions, self.agent_velocities = self.generate_agents()
 
@@ -48,6 +50,18 @@ class Boids:
         target_pos = self.agent_positions[mask]
         target_vel = self.agent_velocities[mask]
         return (target_pos, target_vel)
+    
+    def get_target_mask(self, i):
+        # Bestimmt welche Agenten vom aktuellen sichtbar sind
+        # Gibt Array aus Bools zurück
+        current_pos, current_vel = self.agent_positions[i], self.agent_velocities[i]
+        mask = np.zeros([self.n], dtype=bool)
+
+        for i in range(len(self.agent_positions)):
+            if (self.agent_positions[i] != current_pos).all() and np.dot(current_vel, self.agent_positions[i] - current_pos) > 0:
+                mask[i] = np.linalg.norm(self.agent_positions[i] - current_pos) < self.radius
+
+        return mask
 
     def get_separation_force(self, current_pos, target_pos):
         vectors = current_pos - target_pos
@@ -72,15 +86,19 @@ class Boids:
         force = center_position - current_pos
         return force / np.linalg.norm(force)
 
-    def update_velocity(self, current_vel, current_pos):
+    def update_velocity(self, i):
         # Ändert Geschwindigkeit anhand der wirkenden Kraft
         # Gibt neue Geschwindigkeit zurück
-        target_pos, target_vel = self.get_targets(current_pos, current_vel)
+        current_pos, current_vel = self.agent_positions[i], self.agent_velocities[i]
+        target_mask = self.get_target_mask(i)
+        target_pos, target_vel = self.agent_positions[target_mask], self.agent_velocities[target_mask]
 
         if target_pos.size != 0:
             cohesion_force = self.get_cohesion_force(current_pos, target_pos)
             alignment_force = self.get_alignment_force(current_pos, target_pos, target_vel)
+
             separation_force = self.get_separation_force(current_pos, target_pos)
+
             force = cohesion_force + alignment_force + separation_force
 
             theta = vector_angle(current_vel, force)
@@ -90,7 +108,6 @@ class Boids:
         return current_vel
 
     def update(self):
-
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 pg.quit()
@@ -99,7 +116,7 @@ class Boids:
         new_velocities = np.zeros([self.n, 2])
 
         for i in range(self.n):
-            new_velocities[i] = self.update_velocity(self.agent_velocities[i], self.agent_positions[i])
+            new_velocities[i] = self.update_velocity(i)
 
         self.agent_velocities = new_velocities
 

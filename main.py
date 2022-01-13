@@ -1,5 +1,6 @@
 import numpy as np
 import pygame as pg
+import sys
 
 def rotate_vector(vector, theta):
     return np.dot(vector, np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]]))
@@ -46,7 +47,7 @@ class Boids:
         mask = np.zeros([self.n], dtype=bool)
 
         for i in range(len(self.agent_positions)):
-            if (self.agent_positions[i] != current_pos).all(): # and abs(vector_angle(current_vel, self.agent_positions[i] - current_pos)) < np.pi * 0.7:
+            if (self.agent_positions[i] != current_pos).all() and np.dot(current_vel, self.agent_positions[i] - current_pos) > 0:
                 mask[i] = np.linalg.norm(self.agent_positions[i] - current_pos) < self.radius
 
         target_pos = self.agent_positions[mask]
@@ -94,6 +95,12 @@ class Boids:
         return current_vel
 
     def update(self):
+
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                pg.quit()
+                sys.exit()
+
         new_velocities = np.zeros([self.n, 2])
 
         for i in range(self.n):

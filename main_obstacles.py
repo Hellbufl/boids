@@ -15,10 +15,6 @@ def vector_angle(v1, v2):
 class Obstacle:
 
     def __init__(self, n,):
-        pg.init()
-        self.resolution = (800, 600)
-        self.display = pg.display.set_mode(self.resolution)
-        self.clock = pg.time.Clock()
 
         self.n = n
         self.obstacle_positions, self.obstacle_velocities = self.generate_obstacle()
@@ -26,13 +22,8 @@ class Obstacle:
     def generate_obstacle(self):
 
         opositions = np.random.rand(self.n, 2) * self.resolution
-        ovelocities = np.ones([self.n, 2]) * [1, 0]
-        oangles = np.random.rand(self.n) * np.pi * 2
 
-        for i in range(self.n):
-            ovelocities[i] = rotate_vector(ovelocities[i], oangles[i])
-
-        return (opositions, ovelocities * 2)
+        return opositions
 
 class Boids:
 
@@ -116,7 +107,9 @@ class Boids:
         current_pos, current_vel = self.agent_positions[i], self.agent_velocities[i]
         target_mask = self.get_target_mask(i)
         target_pos, target_vel = self.agent_positions[target_mask], self.agent_velocities[target_mask]
+
         oseparation_force = self.get_oseparation_force(current_pos)
+
         if target_pos.size != 0 :
             cohesion_force = self.get_cohesion_force(current_pos, target_pos)
             alignment_force = self.get_alignment_force(current_pos, target_pos, target_vel)
@@ -127,6 +120,7 @@ class Boids:
             theta = vector_angle(current_vel, force)
 
             return rotate_vector(current_vel, theta * 0.05)
+            
         elif np.linalg.norm(oseparation_force) != 0:
             theta = vector_angle(current_vel, oseparation_force)
 
@@ -176,5 +170,5 @@ class Boids:
 
 if __name__ == '__main__':
     B = Boids(20, 50)
-    O = Obstacle(20,)
+    O = Obstacle(10,)
     B.mainloop()

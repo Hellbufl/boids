@@ -21,19 +21,19 @@ class Boids:
         self.clock = pg.time.Clock()
 
         self.n = n
-        self.n_predator = 1
         self.radius = r
         self.agent_positions, self.agent_velocities = self.generate_agents()
+        self.obstacle_positions = np.random.rand(self.n[1], 2) * self.resolution
 
     def generate_agents(self):
         # Generiert zufällige Positionen und Geschwindigkeiten
         # Gibt Tupel (pos, vel) zurück
 
-        positions = np.random.rand(self.n, 2) * self.resolution
-        velocities = np.ones([self.n, 2]) * [1, 0]
-        angles = np.random.rand(self.n) * np.pi * 2
+        positions = np.random.rand(self.n[0], 2) * self.resolution
+        velocities = np.ones([self.n[0], 2]) * [1, 0]
+        angles = np.random.rand(self.n[0]) * np.pi * 2
 
-        for i in range(self.n):
+        for i in range(self.n[0]):
             velocities[i] = rotate_vector(velocities[i], angles[i])
 
         return (positions, velocities * 2)
@@ -41,7 +41,7 @@ class Boids:
     def get_targets(self, current_pos, current_vel):
         # Bestimmt welche Agenten vom aktuellen sichtbar sind
         # Gibt Array aus Bools zurück
-        mask = np.zeros([self.n], dtype=bool)
+        mask = np.zeros([self.n[0]], dtype=bool)
 
         for i in range(len(self.agent_positions)):
             if (self.agent_positions[i] != current_pos).all() and np.dot(current_vel, self.agent_positions[i] - current_pos) > 0:
@@ -55,13 +55,18 @@ class Boids:
         # Bestimmt welche Agenten vom aktuellen sichtbar sind
         # Gibt Array aus Bools zurück
         current_pos, current_vel = self.agent_positions[i], self.agent_velocities[i]
-        mask = np.zeros([self.n], dtype=bool)
+        boid_mask = np.zeros([self.n[0]], dtype=bool)
+        obstacle_mask = np.zeros([self.n[1]], dtype=bool)
 
-        for i in range(len(self.agent_positions)):
+        for i in range(self.n[0]):
             if (self.agent_positions[i] != current_pos).all() and np.dot(current_vel, self.agent_positions[i] - current_pos) > 0:
-                mask[i] = np.linalg.norm(self.agent_positions[i] - current_pos) < self.radius
+                boid_mask[i] = np.linalg.norm(self.agent_positions[i] - current_pos) < self.radius
+        
+        for i in range(self.n[1]):
+            if (self.obstacle_positions[i] != current_pos).all() and np.dot(current_vel, self.obstacle_positions[i] - current_pos) > 0:
+                obstacle_mask[i] = np.linalg.norm(self.obstacle_positions[i] - current_pos) < self.radius
 
-        return mask
+        return (boid_mask, obstacle_mask)
 
     def get_separation_force(self, current_pos, target_pos):
         vectors = current_pos - target_pos
@@ -69,7 +74,7 @@ class Boids:
         norm_vectors = vectors / distances
         weighted_vectors = norm_vectors * (self.radius - distances)
         force = np.sum(weighted_vectors, 0) / len(vectors)
-        return force / np.linalg.norm(force)
+        return force
 
     def get_alignment_force(self, current_pos, target_pos, target_vel):
         vectors_pos = current_pos - target_pos
@@ -79,33 +84,39 @@ class Boids:
         norm_vectors_vel = target_vel / length_vectors_vel
         weighted_vectors = norm_vectors_vel * (self.radius - distances)
         force = np.sum(weighted_vectors, 0) / len(weighted_vectors)
-        return force / np.linalg.norm(force)
+        return force
 
     def get_cohesion_force(self, current_pos, target_pos):
         center_position = np.sum(target_pos, 0) / len(target_pos)
         force = center_position - current_pos
-        return force / np.linalg.norm(force)
+        return force
 
     def update_velocity(self, i):
         # Ändert Geschwindigkeit anhand der wirkenden Kraft
         # Gibt neue Geschwindigkeit zurück
         current_pos, current_vel = self.agent_positions[i], self.agent_velocities[i]
-        target_mask = self.get_target_mask(i)
-        target_pos, target_vel = self.agent_positions[target_mask], self.agent_velocities[target_mask]
+        boid_target_mask, obstacle_target_mask = self.get_target_mask(i)
+        boid_target_pos, boid_target_vel = self.agent_positions[boid_target_mask], self.agent_velocities[boid_target_mask]
+        obstacle_target_pos = self.obstacle_positions[obstacle_target_mask]
 
-        if target_pos.size != 0:
-            cohesion_force = self.get_cohesion_force(current_pos, target_pos)
-            alignment_force = self.get_alignment_force(current_pos, target_pos, target_vel)
+        force = np.zeros([3, 2])
 
-            separation_force = self.get_separation_force(current_pos, target_pos)
+        if boid_target_pos.size != 0:
+            force[0] = self.get_cohesion_force(current_pos, boid_target_pos)
+            force[1] = self.get_alignment_force(current_pos, boid_target_pos, boid_target_vel)
 
-            force = cohesion_force + alignment_force + separation_force
+        if boid_target_pos.size != 0 or obstacle_target_pos.size != 0:
+            target_pos = np.append(boid_target_pos, obstacle_target_pos, 0)
+            force[2] = self.get_separation_force(current_pos, target_pos)
 
-            theta = vector_angle(current_vel, force)
+        sum_force = np.sum(force, 0)
 
-            return rotate_vector(current_vel, theta * 0.05)
-        
-        return current_vel
+        if (sum_force == 0).all():
+            return current_vel
+
+        theta = vector_angle(current_vel, sum_force)
+
+        return rotate_vector(current_vel, theta * 0.05)
 
     def update(self):
         for event in pg.event.get():
@@ -113,21 +124,22 @@ class Boids:
                 pg.quit()
                 sys.exit()
 
-        new_velocities = np.zeros([self.n, 2])
+        new_velocities = np.zeros([self.n[0], 2])
 
-        for i in range(self.n):
+        for i in range(self.n[0]):
             new_velocities[i] = self.update_velocity(i)
 
         self.agent_velocities = new_velocities
 
         self.agent_positions += self.agent_velocities
+
         self.agent_positions %= self.resolution
 
     def draw(self):
         size = 20
         self.display.fill((42, 42, 42))
 
-        for i in range(self.n):
+        for i in range(self.n[0]):
             position = self.agent_positions[i]
             velocity = self.agent_velocities[i]
             direction = velocity / np.linalg.norm(velocity)
@@ -137,6 +149,9 @@ class Boids:
             point_c = position - np.array([-direction[1], direction[0]]) * size / 4
 
             pg.draw.polygon(self.display, (255, 255, 255), (point_a, point_b, point_c))
+        
+        for i in range(self.n[1]):
+            pg.draw.circle(self.display, (130, 130, 255), self.obstacle_positions[i], 5)
 
     def mainloop(self):
         while True:
@@ -146,5 +161,5 @@ class Boids:
             self.clock.tick(60)
 
 if __name__ == '__main__':
-    B = Boids(30, 50)
+    B = Boids([20, 10], 100)
     B.mainloop()

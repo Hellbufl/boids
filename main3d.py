@@ -94,7 +94,7 @@ class Boids:
         for i in range(self.n[typ]):
             velocities[i] = rotate_vector(velocities[i], axes[i], angles[i])
 
-        return (positions, velocities * 2)
+        return (positions, velocities * (2 + (typ)))
 
     # Bestimmt welche Boids vom aktuellen sichtbar sind
     # Gibt Array aus Bools zurück
@@ -142,6 +142,12 @@ class Boids:
         center_position = np.sum(target_pos, 0) / len(target_pos)
         force = center_position - current_pos
         return force
+    
+    def get_boundry_force(self, current_pos):
+        vector = current_pos - self.boundry_size / 2
+        distance = np.linalg.norm(vector)
+        force = -vector * 0.01 * (distance > self.boundry_size * 0.4)
+        return force
 
     # Ändert Geschwindigkeit anhand der wirkenden Kraft
     # Gibt neue Geschwindigkeit zurück
@@ -172,7 +178,7 @@ class Boids:
 
             force[2] += self.get_separation_force(current_pos, target_pos)
 
-        sum_force = np.sum(force, 0)
+        sum_force = np.sum(force, 0) + self.get_boundry_force(current_pos)
 
         if (sum_force == 0).all():
             return current_vel

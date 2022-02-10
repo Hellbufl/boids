@@ -41,14 +41,45 @@ class Boids:
 
         self.scale = size / 100
 
+        # VPYTHON
+        vp.scene.width, vp.scene.height = 1920, 1080
+
         for i in range(n[0]):
-            self.boids.append(vp.arrow(pos = arr_to_vec(self.boid_positions[i]), axis = arr_to_vec(self.boid_velocities[i]), shaftwidth=0, round=True, headlength=5*self.scale, headwidth=3*self.scale))
-        
+            self.boids.append(vp.cone(pos = arr_to_vec(self.boid_positions[i]), axis = arr_to_vec(self.boid_velocities[i] * 8), radius = 5))
+
         for i in range(n[1]):
-            self.preds.append(vp.arrow(pos = arr_to_vec(self.pred_positions[i]), axis = arr_to_vec(self.pred_velocities[i]), color = vp.vector(1, 0, 0), shaftwidth=0, round=True, headlength=5*self.scale, headwidth=3*self.scale))
+            self.preds.append(vp.cone(pos = arr_to_vec(self.pred_positions[i]), axis = arr_to_vec(self.pred_velocities[i] * 8), radius = 5, color = vp.color.red))
         
         for i in range(n[2]):
-            self.obstacles.append(vp.sphere(pos = arr_to_vec(self.obstacle_positions[i]), color = vp.vector(0, 0, 1)))
+            self.obstacles.append(vp.sphere(pos = arr_to_vec(self.obstacle_positions[i]), radius = 10, color = vp.color.blue))
+        
+        gray = vp.color.gray(0.7)
+        r = 1
+        d = size
+
+        boxbottom = vp.curve(color=gray, radius=r)
+        boxbottom.append([vp.vector(0, 0, 0), vp.vector(0, 0, d), vp.vector(d, 0, d), vp.vector(d, 0, 0), vp.vector(0, 0, 0)])
+        boxtop = vp.curve(color=gray, radius=r)
+        boxtop.append([vp.vector(0,d,0), vp.vector(0,d,d), vp.vector(d,d,d), vp.vector(d,d,0), vp.vector(0,d,0)])
+        vert1 = vp.curve(color=gray, radius=r)
+        vert2 = vp.curve(color=gray, radius=r)
+        vert3 = vp.curve(color=gray, radius=r)
+        vert4 = vp.curve(color=gray, radius=r)
+        vert1.append([vp.vector(0,0,0), vp.vector(0,d,0)])
+        vert2.append([vp.vector(0,0,d), vp.vector(0,d,d)])
+        vert3.append([vp.vector(d,0,d), vp.vector(d,d,d)])
+        vert4.append([vp.vector(d,0,0), vp.vector(d,d,0)])
+
+        R = size/100
+        d = size-2
+        xaxis = vp.cylinder(pos=vp.vec(0,0,0), axis=vp.vec(0,0,d), radius=R, color=vp.color.yellow)
+        yaxis = vp.cylinder(pos=vp.vec(0,0,0), axis=vp.vec(d,0,0), radius=R, color=vp.color.yellow)
+        zaxis = vp.cylinder(pos=vp.vec(0,0,0), axis=vp.vec(0,d,0), radius=R, color=vp.color.yellow)
+        k = 1.02
+        h = 0.05*size
+        vp.text(pos=xaxis.pos+k*xaxis.axis, text='x', height=h, align='center', billboard=True, emissive=True)
+        vp.text(pos=yaxis.pos+k*yaxis.axis, text='y', height=h, align='center', billboard=True, emissive=True)
+        vp.text(pos=zaxis.pos+k*zaxis.axis, text='z', height=h, align='center', billboard=True, emissive=True)
 
     # Generiert zufällige Positionen und Geschwindigkeiten
     # Gibt Tupel (pos, vel) zurück
@@ -63,7 +94,7 @@ class Boids:
         for i in range(self.n[typ]):
             velocities[i] = rotate_vector(velocities[i], axes[i], angles[i])
 
-        return (positions, velocities * 0.5)
+        return (positions, velocities * 2)
 
     # Bestimmt welche Boids vom aktuellen sichtbar sind
     # Gibt Array aus Bools zurück
@@ -173,17 +204,17 @@ class Boids:
 
         for i in range(self.n[0]):
             self.boids[i].pos = arr_to_vec(self.boid_positions[i])
-            self.boids[i].axis = arr_to_vec(self.boid_velocities[i])
+            self.boids[i].axis = arr_to_vec(self.boid_velocities[i] * 8)
         
         for i in range(self.n[1]):
             self.preds[i].pos = arr_to_vec(self.pred_positions[i])
-            self.preds[i].axis = arr_to_vec(self.pred_velocities[i])
+            self.preds[i].axis = arr_to_vec(self.pred_velocities[i] * 8)
 
     def mainloop(self):
         while True:
-            vp.rate(60)
+            vp.rate(30)
             self.update()
 
 if __name__ == '__main__':
-    B = Boids([30, 3, 0], 10, 200)
+    B = Boids([30, 2, 0], 50, 1000)
     B.mainloop()

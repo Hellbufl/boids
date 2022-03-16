@@ -3,7 +3,7 @@ import numpy as np
 import pygame as pg
 import sys, ctypes
 
-DISPLAY_SIZE_DEFAULT = (1600, 900)
+DISPLAY_SIZE_DEFAULT = (1920, 1080)
 
 def get_display_size():
 
@@ -13,8 +13,8 @@ def get_display_size():
     else:
         return DISPLAY_SIZE_DEFAULT
 
-def rotate_vector(vector, theta):
-    return np.dot(vector, np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]]))
+def rotate_vector(vector, angle):
+    return np.dot(vector, np.array([[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]]))
 
 def vector_angle(v1, v2):
     alpha = np.arccos(v1[0] / np.linalg.norm(v1)) * (v1[1] / abs(v1[1]))
@@ -26,7 +26,7 @@ class Boids:
 
     def __init__(self, n, r):
         pg.init()
-        self.resolution = get_display_size() #(800, 600)
+        self.resolution = get_display_size()
         self.display = pg.display.set_mode(self.resolution, pg.HWSURFACE | pg.FULLSCREEN)
         self.clock = pg.time.Clock()
 
@@ -48,7 +48,7 @@ class Boids:
         for i in range(self.n[typ]):
             velocities[i] = rotate_vector(velocities[i], angles[i])
 
-        return (positions, velocities * 2)
+        return (positions, velocities * 1.5 * (2 + typ))
 
     def get_target_mask(self, current_pos, current_vel):
         # Bestimmt welche Boids vom aktuellen sichtbar sind
@@ -97,6 +97,12 @@ class Boids:
         center_position = np.sum(target_pos, 0) / len(target_pos)
         force = center_position - current_pos
         return force
+    
+    def get_boundry_force(self, current_pos):
+        vector = current_pos - np.array(self.resolution) / 2
+        distance = np.linalg.norm(vector)
+        force = -vector * 5 * (distance > self.resolution[1] * 0.1)
+        return force
 
     def update_velocity(self, current_pos, current_vel):
         # Ändert Geschwindigkeit anhand der wirkenden Kraft
@@ -135,9 +141,9 @@ class Boids:
         if (sum_force == 0).all():
             return current_vel
 
-        theta = vector_angle(current_vel, sum_force)
+        angle = vector_angle(current_vel, sum_force)
 
-        return rotate_vector(current_vel, theta * 0.05)
+        return rotate_vector(current_vel, angle * 0.05)
 
     def update(self):
         for event in pg.event.get():
@@ -196,5 +202,5 @@ class Boids:
             self.clock.tick(60)
 
 if __name__ == '__main__':
-    B = Boids([50, 5, 3], 100)
+    B = Boids([20, 1, 0], 100)
     B.mainloop()

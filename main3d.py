@@ -42,7 +42,7 @@ class Boids:
         self.scale = size / 100
 
         # VPYTHON
-        vp.scene.width, vp.scene.height = 1920, 1080
+        vp.scene.width, vp.scene.height = 600, 400 # 1920, 1080
 
         for i in range(n[0]):
             self.boids.append(vp.cone(pos = arr_to_vec(self.boid_positions[i]), axis = arr_to_vec(self.boid_velocities[i] * 8), radius = 5))
@@ -94,7 +94,7 @@ class Boids:
         for i in range(self.n[typ]):
             velocities[i] = rotate_vector(velocities[i], axes[i], angles[i])
 
-        return (positions, velocities * (2 + (typ)))
+        return (positions, velocities * 1.5 * (2 + (typ)))
 
     # Bestimmt welche Boids vom aktuellen sichtbar sind
     # Gibt Array aus Bools zurück
@@ -146,7 +146,7 @@ class Boids:
     def get_boundry_force(self, current_pos):
         vector = current_pos - self.boundry_size / 2
         distance = np.linalg.norm(vector)
-        force = -vector * 0.01 * (distance > self.boundry_size * 0.4)
+        force = -vector * 0.004 * (distance > self.boundry_size * 0.4)
         return force
 
     # Ändert Geschwindigkeit anhand der wirkenden Kraft
@@ -210,11 +210,11 @@ class Boids:
 
         for i in range(self.n[0]):
             self.boids[i].pos = arr_to_vec(self.boid_positions[i])
-            self.boids[i].axis = arr_to_vec(self.boid_velocities[i] * 8)
+            self.boids[i].axis = arr_to_vec(self.boid_velocities[i] * 16 / np.linalg.norm(self.boid_velocities[i]))
         
         for i in range(self.n[1]):
             self.preds[i].pos = arr_to_vec(self.pred_positions[i])
-            self.preds[i].axis = arr_to_vec(self.pred_velocities[i] * 8)
+            self.preds[i].axis = arr_to_vec(self.pred_velocities[i] * 16 / np.linalg.norm(self.pred_velocities[i]))
 
     def mainloop(self):
         while True:
@@ -222,5 +222,5 @@ class Boids:
             self.update()
 
 if __name__ == '__main__':
-    B = Boids([30, 2, 0], 50, 1000)
+    B = Boids([20, 1, 0], 100, 1000)
     B.mainloop()

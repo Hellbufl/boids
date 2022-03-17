@@ -1,6 +1,9 @@
 import numpy as np
 import vpython as vp
 
+# rotation in 3D needs an axis to rotate around
+# and is just way more complicated than 2D
+# using quaternions because theyre not affected by gimbal lock
 def rotate_vector(vector, axis, angle):
     # dont even ask
     angle /= 2
@@ -11,13 +14,14 @@ def rotate_vector(vector, axis, angle):
     # unit quaternion q = cos(angle) + sin(angle)(v[0]i + v[1]j + v[2]k)
     q = np.append(np.cos(angle), axis * np.sin(angle))
 
-    # dont worry about it :) (i didnt) https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Using_quaternions_as_rotations
-    rotation_matrix = [[1 - 2*(np.power(q[2], 2) + np.power(q[3], 2)), 2*(q[1]*q[2] - q[3]*q[0]), 2*(q[1]*q[3] + q[2]*q[0])],
-                        [2*(q[1]*q[2] + q[3]*q[0]), 1 - 2*(np.power(q[1], 2) + np.power(q[3], 2)), 2*(q[2]*q[3] - q[1]*q[0])],
-                        [2*(q[1]*q[3] - q[2]*q[0]), 2*(q[2]*q[3] + q[1]*q[0]), 1 - 2*(np.power(q[1], 2) + np.power(q[2], 2))]]
+    # dont worry about it :) https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Using_quaternions_as_rotations
+    rotation_matrix = [[1 - 2*(np.power(q[2], 2) + np.power(q[3], 2)),      2*(q[1]*q[2] - q[3]*q[0]),                          2*(q[1]*q[3] + q[2]*q[0])],
+                        [2*(q[1]*q[2] + q[3]*q[0]),                         1 - 2*(np.power(q[1], 2) + np.power(q[3], 2)),      2*(q[2]*q[3] - q[1]*q[0])],
+                        [2*(q[1]*q[3] - q[2]*q[0]),                         2*(q[2]*q[3] + q[1]*q[0]),                          1 - 2*(np.power(q[1], 2) + np.power(q[2], 2))]]
     
     return np.dot(vector, rotation_matrix)
 
+# same as in 2D
 def vector_angle(v1, v2):
     return np.arccos(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
 
@@ -41,9 +45,12 @@ class Boids:
 
         self.scale = size / 100
 
-        # VPYTHON
+
+        ### VPYTHON ###
+
         vp.scene.width, vp.scene.height = 600, 400 # 1920, 1080
 
+        # initializing vpython objects for each boid, predator and obstacle
         for i in range(n[0]):
             self.boids.append(vp.cone(pos = arr_to_vec(self.boid_positions[i]), axis = arr_to_vec(self.boid_velocities[i] * 8), radius = 5))
 
@@ -57,6 +64,7 @@ class Boids:
         r = 1
         d = size
 
+        # bounding box of the space the boids are in
         boxbottom = vp.curve(color=gray, radius=r)
         boxbottom.append([vp.vector(0, 0, 0), vp.vector(0, 0, d), vp.vector(d, 0, d), vp.vector(d, 0, 0), vp.vector(0, 0, 0)])
         boxtop = vp.curve(color=gray, radius=r)
@@ -70,6 +78,7 @@ class Boids:
         vert3.append([vp.vector(d,0,d), vp.vector(d,d,d)])
         vert4.append([vp.vector(d,0,0), vp.vector(d,d,0)])
 
+        # x, y and z axes
         R = size/100
         d = size-2
         xaxis = vp.cylinder(pos=vp.vec(0,0,0), axis=vp.vec(0,0,d), radius=R, color=vp.color.yellow)
@@ -80,10 +89,8 @@ class Boids:
         vp.text(pos=xaxis.pos+k*xaxis.axis, text='x', height=h, align='center', billboard=True, emissive=True)
         vp.text(pos=yaxis.pos+k*yaxis.axis, text='y', height=h, align='center', billboard=True, emissive=True)
         vp.text(pos=zaxis.pos+k*zaxis.axis, text='z', height=h, align='center', billboard=True, emissive=True)
-
-    # Generiert zufällige Positionen und Geschwindigkeiten
-    # Gibt Tupel (pos, vel) zurück
-    # typ 0: boids / typ 1: preds
+    
+    # same as in 2D
     def generate_agents(self, typ):
         positions = np.random.rand(self.n[typ], 3) * self.boundry_size
         velocities = np.ones([self.n[typ], 3]) * [1, 0, 0]
@@ -96,8 +103,7 @@ class Boids:
 
         return (positions, velocities * 1.5 * (2 + (typ)))
 
-    # Bestimmt welche Boids vom aktuellen sichtbar sind
-    # Gibt Array aus Bools zurück
+    # same as in 2D
     def get_target_mask(self, current_pos, current_vel):
         boid_mask = np.zeros([self.n[0]], dtype=bool)
         pred_mask = np.zeros([self.n[1]], dtype=bool)
@@ -120,6 +126,7 @@ class Boids:
 
         return (boid_mask, pred_mask, obstacle_mask)
 
+    # same as in 2D
     def get_separation_force(self, current_pos, target_pos):
         vectors = current_pos - target_pos
         distances = np.reshape(np.linalg.norm(vectors, axis=1), (len(vectors), 1))
@@ -128,6 +135,7 @@ class Boids:
         force = np.sum(weighted_vectors, 0) / len(vectors)
         return force
 
+    # same as in 2D
     def get_alignment_force(self, current_pos, target_pos, target_vel):
         vectors_pos = current_pos - target_pos
         distances = np.reshape(np.linalg.norm(vectors_pos, axis=1), (len(vectors_pos), 1))
@@ -138,19 +146,21 @@ class Boids:
         force = np.sum(weighted_vectors, 0) / len(weighted_vectors)
         return force
 
+    # same as in 2D
     def get_cohesion_force(self, current_pos, target_pos):
         center_position = np.sum(target_pos, 0) / len(target_pos)
         force = center_position - current_pos
         return force
     
+    # extra force to keep the boids more in the center of the space
+    # to avoid them going over the edges (because its more confusing in 3D)
     def get_boundry_force(self, current_pos):
         vector = current_pos - self.boundry_size / 2
         distance = np.linalg.norm(vector)
         force = -vector * 0.004 * (distance > self.boundry_size * 0.4)
         return force
 
-    # Ändert Geschwindigkeit anhand der wirkenden Kraft
-    # Gibt neue Geschwindigkeit zurück
+    # (almost) same as in 2D
     def update_velocity(self, current_pos, current_vel):
         boid_target_mask, pred_target_mask, obstacle_target_mask = self.get_target_mask(current_pos, current_vel)
 
@@ -188,6 +198,7 @@ class Boids:
 
         return rotate_vector(current_vel, axis, angle * 0.05)
 
+    # (almost) same as in 2D
     def update(self):
 
         new_boid_velocities = np.zeros([self.n[0], 3])
@@ -208,6 +219,7 @@ class Boids:
         self.boid_positions %= self.boundry_size
         self.pred_positions %= self.boundry_size
 
+        # updating the vpython objects positions and velocities (directions)
         for i in range(self.n[0]):
             self.boids[i].pos = arr_to_vec(self.boid_positions[i])
             self.boids[i].axis = arr_to_vec(self.boid_velocities[i] * 16 / np.linalg.norm(self.boid_velocities[i]))

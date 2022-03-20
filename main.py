@@ -28,37 +28,53 @@ def vector_angle(v1, v2):
 
 class Boids:
 
-    def __init__(self, n, r):
+    def __init__(self, n, s, r):
         pg.init()
-        self.resolution = get_display_size()
-        self.display = pg.display.set_mode(self.resolution, pg.HWSURFACE | pg.FULLSCREEN)
+        self.resolution = np.array([800, 600]) # get_display_size()
+        self.display = pg.display.set_mode(self.resolution, pg.HWSURFACE | pg.SCALED)# | pg.FULLSCREEN)
         self.clock = pg.time.Clock()
-        self.scale = 40
+
+        self.target_framerate = 60
+        self.frame_time = 1000 / self.target_framerate
+
+        self.scale = 100
+        self.speed = 60 / self.target_framerate
+        self.rotation_speed = 0.05 * 60 / self.target_framerate
+
+        self.cam_pos = np.zeros(2)
+        self.mouse_pos = np.zeros([2, 2])
+        self.click_pos = np.zeros([2, 2])
+        self.is_dragging = False
 
         self.n = n
-        self.radius = r * self.scale / 20
+        self.boundry_size = s
+        self.radius = r
         self.boid_positions, self.boid_velocities = self.generate_agents(0)
         self.pred_positions, self.pred_velocities = self.generate_agents(1)
-        self.obstacle_positions = np.random.rand(self.n[2], 2) * self.resolution
-
-        self.frame_time = 16
+        self.obstacle_positions = np.random.rand(self.n[2], 2) * self.boundry_size
 
         self.debug_mode = 0
         self.debug_force = np.zeros(2)
         self.debug_position = np.zeros(2)
+        self.debug_font = pg.font.SysFont('comic sans ms', 20)
+
+        self.framerate = self.target_framerate
+        self.framerate_buffer_size = int(self.target_framerate / 2)
+        self.framerate_buffer = np.zeros(self.framerate_buffer_size)
+        self.framerate_buffer_index = 0
 
     # generates random positions and velocities
     # returns (pos, vel)
     # typ 0: boids / typ 1: predators
     def generate_agents(self, typ):
-        positions = np.random.rand(self.n[typ], 2) * self.resolution
+        positions = np.random.rand(self.n[typ], 2) * self.boundry_size
         velocities = np.ones([self.n[typ], 2]) * [1, 0]
         angles = np.random.rand(self.n[typ]) * np.pi * 2
 
         for i in range(self.n[typ]):
             velocities[i] = rotate_vector(velocities[i], angles[i])
 
-        return (positions, velocities * 1.5 * (2 + typ))
+        return (positions, velocities * self.speed * (2 + typ))
 
     # determines the boids, predators and obstacles visible from the current boids position
     # returns bool numpy arrays which can be used instead of an index to get all elements where the mask is true
@@ -114,10 +130,42 @@ class Boids:
     
     # currently not in use
     def get_boundry_force(self, current_pos):
-        vector = current_pos - np.array(self.resolution) / 2
+        vector = current_pos - np.array(self.boundry_size) / 2
         distance = np.linalg.norm(vector)
-        force = -vector * 5 * (distance > self.resolution[1] * 0.1)
+        force = -vector * 5 * (distance > self.boundry_size[1] * 0.1)
         return force
+    
+    # calculates forces that would act on a boid at the mouse cursers position
+    # this is almost the same as in update_velocity()
+    def set_debug_forces(self, position):
+        boid_target_mask, pred_target_mask, obstacle_target_mask = self.get_target_mask(position)
+
+        boid_target_pos, boid_target_vel = self.boid_positions[boid_target_mask], self.boid_velocities[boid_target_mask]
+        pred_target_pos, pred_target_vel = self.pred_positions[pred_target_mask], self.pred_velocities[pred_target_mask]
+        obstacle_target_pos = self.obstacle_positions[obstacle_target_mask]
+
+        force = np.zeros([3, 2])
+
+        if boid_target_pos.size > 0:
+            force[0] = self.get_cohesion_force(position, boid_target_pos)
+
+            if position not in self.pred_positions:
+                force[1] = self.get_alignment_force(position, boid_target_pos, boid_target_vel)
+
+        if (boid_target_pos.size > 0 and position not in self.pred_positions) or pred_target_pos.size > 0 or obstacle_target_pos.size > 0:
+            if position in self.pred_positions:
+                target_pos = np.append(pred_target_pos, obstacle_target_pos, 0)
+
+            else:
+                target_pos = np.append(boid_target_pos, obstacle_target_pos, 0)
+                target_pos = np.append(target_pos, pred_target_pos, 0)
+                if pred_target_pos.size > 0:
+                    force[2] = self.get_separation_force(position, pred_target_pos) * 10
+
+            force[2] += self.get_separation_force(position, target_pos)
+
+        self.debug_force = force * self.scale / 100
+        self.debug_position = (position - self.cam_pos) * self.scale / 100
 
     # applies forces and returns new velocity for a boid
     def update_velocity(self, current_pos, current_vel):
@@ -158,42 +206,23 @@ class Boids:
 
         angle = vector_angle(current_vel, sum_force)
 
-        return rotate_vector(current_vel, angle * 0.05 * self.frame_time / 16)
-    
-    # calculates forces that would act on a boid at the mouse cursers position
-    # this is almost the same as in update_velocity()
-    def set_debug_forces(self, position):
-        boid_target_mask, pred_target_mask, obstacle_target_mask = self.get_target_mask(position)
-
-        boid_target_pos, boid_target_vel = self.boid_positions[boid_target_mask], self.boid_velocities[boid_target_mask]
-        pred_target_pos, pred_target_vel = self.pred_positions[pred_target_mask], self.pred_velocities[pred_target_mask]
-        obstacle_target_pos = self.obstacle_positions[obstacle_target_mask]
-
-        force = np.zeros([3, 2])
-
-        if boid_target_pos.size > 0:
-            force[0] = self.get_cohesion_force(position, boid_target_pos)
-
-            if position not in self.pred_positions:
-                force[1] = self.get_alignment_force(position, boid_target_pos, boid_target_vel)
-
-        if (boid_target_pos.size > 0 and position not in self.pred_positions) or pred_target_pos.size > 0 or obstacle_target_pos.size > 0:
-            if position in self.pred_positions:
-                target_pos = np.append(pred_target_pos, obstacle_target_pos, 0)
-
-            else:
-                target_pos = np.append(boid_target_pos, obstacle_target_pos, 0)
-                target_pos = np.append(target_pos, pred_target_pos, 0)
-                if pred_target_pos.size > 0:
-                    force[2] = self.get_separation_force(position, pred_target_pos) * 10
-
-            force[2] += self.get_separation_force(position, target_pos)
-        
-        self.debug_force = force
-        self.debug_position = position
+        return rotate_vector(current_vel, angle * self.rotation_speed * self.frame_time * self.target_framerate / 1000)
 
     # main simulation update
     def update(self):
+        self.mouse_pos = np.array(pg.mouse.get_pos())
+
+        self.framerate_buffer[self.framerate_buffer_index] = 1000 / self.frame_time
+        self.framerate_buffer_index += 1
+        self.framerate_buffer_index %= self.framerate_buffer_size
+
+        if self.framerate_buffer_index == self.framerate_buffer_size - 1:
+            self.framerate = int(np.sum(self.framerate_buffer) / self.framerate_buffer_size)
+
+            if self.framerate > 1:
+                self.framerate_buffer_size = int(self.framerate / 2)
+                self.framerate_buffer = np.zeros(self.framerate_buffer_size)
+                self.framerate_buffer_index = 0
 
         # pygame input
         for event in pg.event.get():
@@ -201,7 +230,27 @@ class Boids:
                 pg.quit()
                 sys.exit()
             
+            if event.type == pg.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    self.is_dragging = True
+                    self.click_pos = np.array([self.cam_pos, self.mouse_pos])
+                
+                elif event.button == 4 and self.scale < 1000:
+                    self.scale *= 1.1
+                    self.cam_pos -= (self.resolution * 100 / self.scale - self.resolution * 110 / self.scale) / 2
+
+                elif event.button == 5 and self.scale > 1.1:
+                    self.scale /= 1.1
+                    self.cam_pos += (self.resolution * 100 / self.scale - self.resolution * 110 / self.scale) / 2
+            
+            if event.type == pg.MOUSEBUTTONUP:
+                if event.button == 1:
+                    self.is_dragging = False
+            
             if event.type == pg.KEYDOWN:
+
+                if event.key == K_F11:
+                    pg.display.toggle_fullscreen()
 
                 if event.key == K_HOME:
 
@@ -221,6 +270,16 @@ class Boids:
                         self.debug_mode = 4
                     elif event.key == K_5 and self.n[0] > 0:
                         self.debug_mode = 5
+        
+        if self.is_dragging:
+            self.cam_pos = self.click_pos[0] + (self.click_pos[1] - pg.mouse.get_pos()) * 100 / self.scale
+
+        screen_mid = self.to_world_space(self.resolution / 2)
+        
+        new_screen_mid = (screen_mid <= self.boundry_size) * screen_mid + (self.boundry_size < screen_mid) * self.boundry_size
+        new_screen_mid = (0 <= new_screen_mid) * new_screen_mid
+
+        self.cam_pos += new_screen_mid - screen_mid
 
         if not self.debug_mode or self.debug_mode == 5:
             # updating velocities and positions
@@ -237,52 +296,52 @@ class Boids:
             self.boid_velocities = new_boid_velocities
             self.pred_velocities = new_pred_velocities
 
-            self.boid_positions += self.boid_velocities * self.frame_time / 16
-            self.pred_positions += self.pred_velocities * self.frame_time / 16
+            self.boid_positions += self.boid_velocities * self.frame_time * self.target_framerate / 1000
+            self.pred_positions += self.pred_velocities * self.frame_time * self.target_framerate / 1000
 
-            self.boid_positions %= self.resolution
-            self.pred_positions %= self.resolution
+            self.boid_positions %= self.boundry_size
+            self.pred_positions %= self.boundry_size
 
             if self.debug_mode == 5:
                 self.set_debug_forces(self.boid_positions[0])
 
         else:
             # debug mode
-            self.set_debug_forces(np.array(pg.mouse.get_pos()))
+            self.set_debug_forces(self.to_world_space(pg.mouse.get_pos()))
 
     # pygame graphics
     def draw(self):
         self.display.fill((42, 42, 42))
 
         if self.debug_mode:
-            pg.draw.circle(self.display, (69, 69, 69), self.debug_position, self.radius)
+            pg.draw.circle(self.display, (69, 69, 69), self.debug_position, self.radius * self.scale / 100)
 
             if self.debug_mode > 3:
                 for i in range(3):
-                    pg.draw.line(self.display, (255, 255, 255), self.debug_position, self.debug_position + self.debug_force[i], int(2 * self.scale / 20))
+                    pg.draw.line(self.display, (255, 255, 255), self.debug_position, self.debug_position + self.debug_force[i], int(2 * self.scale / 100))
                 
                 sum_force = np.sum(self.debug_force, 0)
 
                 if (sum_force != 0).all():
-                    sum_force = sum_force * self.radius / np.linalg.norm(sum_force)
+                    sum_force = sum_force * self.radius * self.scale / (100 * np.linalg.norm(sum_force))
 
-                pg.draw.line(self.display, (162, 255, 43), self.debug_position, self.debug_position + sum_force, int(3 * self.scale / 20))
+                pg.draw.line(self.display, (162, 255, 43), self.debug_position, self.debug_position + sum_force, int(3 * self.scale / 100))
             
             else:
-                pg.draw.line(self.display, (0, 255, 255), self.debug_position, self.debug_position + self.debug_force[self.debug_mode - 1], int(2 * self.scale / 20))
+                pg.draw.line(self.display, (0, 255, 255), self.debug_position, self.debug_position + self.debug_force[self.debug_mode - 1], int(2 * self.scale / 100))
 
         agent_positions = np.append(self.boid_positions, self.pred_positions, 0)
         agent_velocities = np.append(self.boid_velocities, self.pred_velocities, 0)
 
         # drawing the boid triangles
         for i in range(self.n[0] + self.n[1]):
-            position = agent_positions[i]
+            position = self.to_screen_space(agent_positions[i])
             velocity = agent_velocities[i]
             direction = velocity / np.linalg.norm(velocity)
  
-            point_a = position + direction * self.scale
-            point_b = position + np.array([-direction[1], direction[0]]) * self.scale / 4
-            point_c = position - np.array([-direction[1], direction[0]]) * self.scale / 4
+            point_a = position + direction * self.scale / 5
+            point_b = position + np.array([-direction[1], direction[0]]) * self.scale / 20
+            point_c = position - np.array([-direction[1], direction[0]]) * self.scale / 20
 
             color = (255, 255, 255)
             if i >= self.n[0]:
@@ -292,15 +351,27 @@ class Boids:
         
         # drawing the obstacles
         for i in range(self.n[2]):
-            pg.draw.circle(self.display, (130, 130, 255), self.obstacle_positions[i], 5)
+            pg.draw.circle(self.display, (130, 130, 255), self.obstacle_positions[i]  - self.cam_pos, 5)
+        
+        framerate_text = self.debug_font.render(str(self.framerate), True, (255, 255, 255))
+        self.display.blit(framerate_text, (5, 5))
+
+        scale_text = self.debug_font.render(str(int(self.scale)), True, (255, 255, 255))
+        self.display.blit(scale_text, (5, 30))
+    
+    def to_screen_space(self, vector):
+        return (np.array(vector) - self.cam_pos) * self.scale / 100
+    
+    def to_world_space(self, vector):
+        return np.array(vector) * 100 / self.scale + self.cam_pos
 
     def mainloop(self):
         while True:
             self.update()
             self.draw()
             pg.display.update()
-            self.frame_time = self.clock.tick(60)
+            self.frame_time = self.clock.tick(self.target_framerate)
 
 if __name__ == '__main__':
-    B = Boids([50, 1, 0], 100)
+    B = Boids([30, 1, 0], [1000, 1000], 100)
     B.mainloop()
